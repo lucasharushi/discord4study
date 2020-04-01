@@ -152,7 +152,7 @@ client.on('message', function(message) {
  
             message.channel.send('skipping the song!');
         break;
-
+        
         case 'stop':
             var server = servers[message.guild.id];
 
