@@ -4,6 +4,8 @@ const discord = require('discord.js');
 const client = new discord.Client();
 
 const ms = require('ms');
+const cheerio = require('cheerio');
+const request = require('request');
 
 // When bot connect on server
 client.on('ready', function() {
@@ -62,6 +64,7 @@ client.on('message', function(message) {
         case 'mute':
             let person = message.guild.member(message.mentions.users.first() || message.guild.members.get(args[1]));
 
+            // Cannot find a member to mute
             if(!person) {
                 return message.reply("Couldn't find that member");
             } else {
@@ -71,18 +74,18 @@ client.on('message', function(message) {
                 if(!muterole) {
                     return message.reply("Couldn't find the mute role");
                 } else {
-                    let time = args[2];
-                    console.log({ args });
+                    let time = args[2]; // Get time to mute
 
                     if(!time) {
                         return message.reply('You didnt specity a time!');
                     }
 
-                    person.removeRole(mainrole.id);
-                    person.addRole(muterole.id);
+                    person.removeRole(mainrole.id); // Remove to actual role
+                    person.addRole(muterole.id); // Send to mute role
 
                     message.channel.send(`@${person.user.tag} has now been muted for ${ms(ms(time))}`);
 
+                    // After X time, the member go back to mailrole
                     setTimeout(function() {
                         person.addRole(mainrole.id);
                         person.removeRole(muterole.id);
@@ -90,11 +93,51 @@ client.on('message', function(message) {
                     }, ms(time));
                 }
             }
+        break;
 
-            
+        case 'image':
+            let search = args[1];
+            if(!search) {
+                message.reply('You didnt specity search');
+                return;
+            }
+
+            image(message, search);
         break;
     }
 });
+
+function image(message, search) {
+    var options = {
+        url: "http://results.dogpile.com/serp?qc=images&q=" + search,
+        method: "GET",
+        headers: {
+            "Accept": "text/html",
+            "User-Agent": "Chrome"
+        }
+    }
+
+    request(options, function(error, response, responseBody) {
+        if (error) {
+            return;
+        }
+
+        $ = cheerio.load(responseBody);
+
+        var links = $('.image a.link');
+
+        var urls = new Array(links.length).fill(0).map((v, i) => links.eq(i).attr('href'));
+
+        // console.log(urls);
+        if(!urls.length) {
+            return;
+        }
+
+        // Send result
+        message.channel.send(urls[Math.floor(Math.random() * urls.length)] + " " + message.guild.members.random());
+        // this method return so many results in $urls, so generate a random value in array
+    });
+}
 
 // Bot connect
 client.login(config.token);
