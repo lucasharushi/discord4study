@@ -6,6 +6,7 @@ const client = new discord.Client();
 const ms = require('ms');
 const cheerio = require('cheerio');
 const request = require('request');
+const ytdl = require('ytdl-core');
 
 // When bot connect on server
 client.on('ready', function() {
@@ -14,6 +15,8 @@ client.on('ready', function() {
 
 const PREFIX = '!'
 var version = '1.0.2';
+
+var servers = {};
 
 // When alguem send message
 client.on('message', function(message) {
@@ -95,6 +98,80 @@ client.on('message', function(message) {
             }
         break;
 
+        case 'play':
+
+            function play(connection, message) {
+                var server = servers[message.guild.id];
+
+                server.dispatcher = connection.playStream(ytdl(server.queue[0], {filter: 'audioonly'}));
+                server.queue.shift();
+
+                server.dispatcher.on('end', function() {
+                    if(server.queue[0]) {
+                        play(connection, message);
+                    } else {
+                        connection.disconnect();
+                    }
+                });
+            }
+
+            if(!args[1]) {
+                message.channel.send('you need to provide a link!');
+                return;
+            }
+            
+            // if is a voice channel
+            if(!message.member.voiceChannel) {
+                message.channel.send('you muste be in a channel to play the bot!');
+                return;
+            }
+
+            if(!servers[message.guild.id]) {
+                servers[message.guild.id] = {
+                    queue: []
+                }
+            }
+
+            var server = servers[message.guild.id];
+
+            server.queue.push(args[1]);
+
+            if(!message.guild.voiceConnection) {
+                message.member.voiceChannel.join()
+                    .then(function(connection) {
+                        play(connection, message);
+                    });
+            }
+        break;
+
+        case 'skip':
+            var server = servers[message.guild.id];
+            if(server.dispatcher) {
+                server.dispatcher.end();
+            }
+
+            message.channel.send('skipping the song!');
+        break;
+
+        case 'stop':
+            var server = servers[message.guild.id];
+
+            if(message.guild.voiceConnection) {
+                for(var i = server.queue.length - 1; i >= 0; i--) {
+                    server.queue.splice(i, 1);
+                }
+
+                server.dispatcher.end();
+                message.channel.send('ending the queue leaving the voice channel');
+                console.log('stopped the queue');
+            }
+
+            if(message.guild.connection) {
+                message.guild.voiceConnection.disconnect();
+            }
+        break;
+
+        // Search images on dogpile.com
         case 'image':
             let search = args[1];
             if(!search) {
@@ -108,6 +185,7 @@ client.on('message', function(message) {
 });
 
 function image(message, search) {
+    // Get images from dogpile.com
     var options = {
         url: "http://results.dogpile.com/serp?qc=images&q=" + search,
         method: "GET",
@@ -134,6 +212,9 @@ function image(message, search) {
         }
 
         // Send result
+        // for(let cont = 0; cont < urls.length; cont++) {
+            // message.channel.send(urls[cont]);
+        // }
         message.channel.send(urls[Math.floor(Math.random() * urls.length)] + " " + message.guild.members.random());
         // this method return so many results in $urls, so generate a random value in array
     });
