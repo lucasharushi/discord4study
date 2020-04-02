@@ -81,6 +81,7 @@ bot.on('message', function(message) {
             bot.commands.get('kick').execute(message, args);
         break;
 
+        // Ban member
         case 'ban':
             bot.commands.get('ban').execute(message, args);
         break;
@@ -91,84 +92,13 @@ bot.on('message', function(message) {
             bot.commands.get('embed').execute(message, args, embed);
         break;
 
+        // Mute member
         case 'mute':
-            // bot.commands.get('mute').execute(message, args);
-            let person = message.guild.member(message.mentions.users.first() || message.guild.members.get(args[1]));
-
-            // Cannot find a member to mute
-            if(!person) {
-                return message.reply("Couldn't find that member");
-            } else {
-                let mainrole = message.guild.roles.find(role => role.name === 'Newbie');
-                let muterole = message.guild.roles.find(role => role.name === 'mute');
-
-                if(!muterole) {
-                    return message.reply("Couldn't find the mute role");
-                } else {
-                    let time = args[2]; // Get time to mute
-
-                    if(!time) {
-                        return message.reply('You didnt specity a time!');
-                    }
-
-                    person.removeRole(mainrole.id); // Remove to actual role
-                    person.addRole(muterole.id); // Send to mute role
-
-                    message.channel.send(`@${person.user.tag} has now been muted for ${ms(ms(time))}`);
-
-                    // After X time, the member go back to mailrole
-                    setTimeout(function() {
-                        person.addRole(mainrole.id);
-                        person.removeRole(muterole.id);
-                        message.channel.send(`@${person.user.tag} has been unmuted!`);
-                    }, ms(time));
-                }
-            }
+            bot.commands.get('mute').execute(message, args, ms);
         break;
 
         case 'song':
-            function play(connection, message) {
-                var server = servers[message.guild.id];
-
-                server.dispatcher = connection.playStream(ytdl(server.queue[0], {filter: 'audioonly'}));
-                server.queue.shift();
-
-                server.dispatcher.on('end', function() {
-                    if(server.queue[0]) {
-                        play(connection, message);
-                    } else {
-                        connection.disconnect();
-                    }
-                });
-            }
-
-            if(!args[1]) {
-                message.channel.send('you need to provide a link!');
-                return;
-            }
-            
-            // if is a voice channel
-            if(!message.member.voiceChannel) {
-                message.channel.send('you muste be in a channel to play the bot!');
-                return;
-            }
-
-            if(!servers[message.guild.id]) {
-                servers[message.guild.id] = {
-                    queue: []
-                }
-            }
-
-            var server = servers[message.guild.id];
-
-            server.queue.push(args[1]);
-
-            if(!message.guild.voiceConnection) {
-                message.member.voiceChannel.join()
-                    .then(function(connection) {
-                        play(connection, message);
-                    });
-            }
+            bot.commands.get('song').execute(message, args, servers, ytdl);
         break;
 
         case 'skip':
