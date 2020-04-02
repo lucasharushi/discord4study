@@ -1,16 +1,37 @@
 const config = require('./config');
 
-const discord = require('discord.js');
-const client = new discord.Client();
+const Discord = require('discord.js');
+const bot = new Discord.Client();
 
 const ms = require('ms');
 const cheerio = require('cheerio');
 const request = require('request');
 const ytdl = require('ytdl-core');
 
+const fs = require('fs');
+bot.commands = new Discord.Collection();
+
+const commandFIles = fs.readdirSync('./commands/').filter(file => file.endsWith('.js'));
+for(const file of commandFIles) {
+    const command = require(`./commands/${file}`);
+
+    bot.commands.set(command.name, command);
+}
+
+
+
+
+
+
+
+
+
 // When bot connect on server
-client.on('ready', function() {
+bot.on('ready', function() {
     console.log('Estou conectado!');
+
+    // Set a status when bot is online
+    bot.user.setActivity('darude sandstorm', { type: 'LISTENING' }).catch(console.error);
 });
 
 const PREFIX = '!'
@@ -18,8 +39,19 @@ var version = '1.0.2';
 
 var servers = {};
 
+bot.on('guildMemberAdd', function(member) {
+    console.log('hi');
+    const channel = member.guild.channels.find(channel => channel.name === "welcome");
+
+    if(!channel) {
+        return;
+    }
+
+    channel.send(`Welcome to our server, ${member}, please read the rules in the rules channel!`);
+});
+
 // When alguem send message
-client.on('message', function(message) {
+bot.on('message', function(message) {
     // console.log(message);
 
     let args = message.content.substring(PREFIX.length).split(' ');
@@ -27,44 +59,40 @@ client.on('message', function(message) {
 
     switch(args[0]) {
 
-        // Show my website
-        case 'website':
-            message.channel.send('https://independent-studies.com');
+        case 'ping':  
+            bot.commands.get('ping').execute(message, args);
         break;
 
-        // Get version bot
-        case 'info':
-            if(args[1] === 'version') {
-                message.channel.send(`Version ${version}`);
-            } else {
-                message.channel.send('Invalid Args');
-            }
+        case 'send':
+            bot.commands.get('send').execute(message, args);
+        break;
+
+        case 'sendlocal':
+            bot.commands.get('sendlocal').execute(message, args);
         break;
 
         // Delete messages
         case 'clear':
-            if(!args[1]) {
-                return message.reply('Error please define second arg');
-            } else {
-                message.channel.bulkDelete(args[1]);
-            }
+            bot.commands.get('clear').execute(message, args);
+        break;
+
+        // Kick member
+        case 'kick':
+            bot.commands.get('kick').execute(message, args);
+        break;
+
+        case 'ban':
+            bot.commands.get('ban').execute(message, args);
         break;
 
         // Create a embed
         case 'embed':
-            const embed = new discord.RichEmbed()
-                .setTitle('User Information')
-                .addField('Dev Name', message.author.username, true)
-                .addField('Version', version, true)
-                .addField('Current Server', message.guild.name, true)
-                .setThumbnail(message.author.avatarURL)
-                .setFooter('Read my website!')
-                .setColor('#0099FF');
-
-            message.channel.send(embed);
+            const embed = new Discord.RichEmbed();
+            bot.commands.get('embed').execute(message, args, embed);
         break;
 
         case 'mute':
+            // bot.commands.get('mute').execute(message, args);
             let person = message.guild.member(message.mentions.users.first() || message.guild.members.get(args[1]));
 
             // Cannot find a member to mute
@@ -98,8 +126,7 @@ client.on('message', function(message) {
             }
         break;
 
-        case 'play':
-
+        case 'song':
             function play(connection, message) {
                 var server = servers[message.guild.id];
 
@@ -152,7 +179,7 @@ client.on('message', function(message) {
  
             message.channel.send('skipping the song!');
         break;
-        
+
         case 'stop':
             var server = servers[message.guild.id];
 
@@ -221,4 +248,4 @@ function image(message, search) {
 }
 
 // Bot connect
-client.login(config.token);
+bot.login(config.token);
